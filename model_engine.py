@@ -22,7 +22,7 @@ class RecSysEngine:
         # 1. Load Gemini (The Router)
         if "GOOGLE_API_KEY" in st.secrets:
             genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-            self.gemini = genai.GenerativeModel('gemini-1.5-flash')
+            self.gemini = genai.GenerativeModel('gemini-2.0-flash')
         
         # 2. Load Word2Vec (The Vibe Checker)
         # Note: We use 'load' for Gensim models
