@@ -97,46 +97,59 @@ class RecSysEngine:
 
     def generate_response(self, user_input):
         
-        # 1. The "System Prompt" - Teaching Gemini how to be a Router
+        # 1. System Prompt
         prompt = f"""
-        You are a dining concierge for San Diego. You have access to these tools:
-        1. predict_rating(user_text, place_name): Predicts 1-5 stars.
-        2. predict_visit(user_history): Recommends 3 new places.
-        3. predict_category(query): Finds a category (e.g. Mexican, Italian).
-        
+        You are a dining concierge for San Diego.
         User Input: "{user_input}"
         
-        Return ONLY a JSON object with the 'intent' and 'parameters'. 
-        Intents: 'rating', 'visit', 'category', 'chat'.
+        Return a JSON object with the 'intent' (rating, visit, category, chat) and 'parameters'.
         
-        Example 1: "Will I like The Taco Stand?" -> {{"intent": "rating", "place": "The Taco Stand"}}
-        Example 2: "Where should I go for dinner?" -> {{"intent": "visit"}}
-        Example 3: "Find me a burger joint" -> {{"intent": "category", "query": "burger"}}
-        Example 4: "Hi!" -> {{"intent": "chat", "response": "Hello! I can help you find food."}}
+        Examples:
+        "Will I like The Taco Stand?" -> {{"intent": "rating", "place": "The Taco Stand"}}
+        "Where should I go?" -> {{"intent": "visit"}}
+        "Find me sushi" -> {{"intent": "category", "query": "sushi"}}
+        "Hello" -> {{"intent": "chat", "response": "Hi there! I can help you find food."}}
         """
 
         try:
-            # 2. Call Gemini
-            response = self.model.generate_content(prompt)
-            result = json.loads(response.text.strip().replace('```json', '').replace('```', ''))
+            # 2. Call Gemini with JSON Mode (Critical Fix)
+            response = self.gemini.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
             
-            # 3. Route the Logic
-            if result['intent'] == 'rating':
-                place = result.get('place')
+            # Debugging: Print what Gemini actually sent back
+            print(f"DEBUG RAW RESPONSE: {response.text}")
+
+            # 3. Parse JSON directly
+            result = json.loads(response.text)
+            
+            # 4. Route the Logic
+            intent = result.get('intent')
+            
+            if intent == 'rating':
+                place = result.get('place', 'Unknown Place')
                 rating = self.predict_rating(user_input, place)
                 return f"🤖 **Analysis:** Based on your vibe, I predict you'd give **{place}** a **{rating}/5**."
             
-            elif result['intent'] == 'visit':
+            elif intent == 'visit':
                 recs = self.predict_visit(user_input)
-                return f"📍 **Recommendations:**\n1. {recs[0]}\n2. {recs[1]}\n3. {recs[2]}"
+                # Format the list nicely
+                if isinstance(recs, list):
+                    rec_str = "\n".join([f"• {r}" for r in recs])
+                else:
+                    rec_str = str(recs)
+                return f"📍 **Recommendations:**\n{rec_str}"
             
-            elif result['intent'] == 'category':
-                cat = self.predict_category(result.get('query'))
-                return f"🔎 Searching for **{cat}**..."
+            elif intent == 'category':
+                query = result.get('query', 'food')
+                cat = self.predict_category(query)
+                return f"🔎 Searching for **{cat}** places near you..."
             
             else:
                 return result.get('response', "I didn't quite catch that.")
 
         except Exception as e:
-            print(f"LLM Error: {e}")
-            return "My brain is slightly fried. Can you ask that simply?"
+            # This prints the REAL error to your Streamlit Cloud logs
+            print(f"❌ FULL ERROR DETAILS: {e}")
+            return "I'm having trouble connecting to my brain. Check the logs!"
