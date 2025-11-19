@@ -4,3 +4,4 @@ numpy
 fastparquet
 gensim
 google-generativeai
+scikit-learn
