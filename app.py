@@ -56,7 +56,7 @@ with st.sidebar:
     
     if "Gemini" in selected_provider:
         st.session_state.llm_provider = "gemini"
-        st.caption("Using: gemini-2.0-flash-exp")
+        st.caption("Using: gemini-2.0-flash")
     elif "OpenAI" in selected_provider:
         st.session_state.llm_provider = "openai"
         st.caption("Using: gpt-4o-mini")
